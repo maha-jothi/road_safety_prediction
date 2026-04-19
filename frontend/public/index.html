@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeRoute AI - Map</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=2">
+</head>
+<body>
+    <div id="map"></div>
+
+    <!-- Floating UI Box (Google Maps style) -->
+    <div class="floating-panel p-top-left">
+        <div class="search-box glass effect">
+            <div class="search-header">
+                <h2>🚘 SafeRoute AI</h2>
+                <p>Click any road on the map to infer safety.</p>
+            </div>
+            
+            <!-- Route Input Form -->
+            <div id="route-inputs" class="route-form hidden">
+                <div class="input-wrapper">
+                    <span class="input-icon">📍</span>
+                    <input type="text" id="start-input" placeholder="Start: Choose on map or type..." autocomplete="off" />
+                    <div id="start-suggestions" class="suggestions hidden"></div>
+                </div>
+                <div class="input-wrapper">
+                    <span class="input-icon">🏁</span>
+                    <input type="text" id="end-input" placeholder="End: Choose on map or type..." autocomplete="off" />
+                    <div id="end-suggestions" class="suggestions hidden"></div>
+                </div>
+                <button id="btn-calculate" class="calc-btn">Calculate Route</button>
+            </div>
+            
+            <div id="prediction-result" class="prediction-card hidden">
+                <div class="status-indicator"></div>
+                <div class="result-content">
+                    <h3 id="result-status">Analyzing...</h3>
+                    <p class="score-text">Severity Risk: <span id="result-score">--</span>%</p>
+                    <p class="coordinate-text" id="result-coords">Lat: --, Lng: --</p>
+                    <a id="gmaps-link" href="#" target="_blank" class="calc-btn hidden" style="display:inline-block; margin-top:8px; font-size:0.75rem; padding:6px 10px; text-decoration:none;">🗺️ Open Route in Google Maps</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Action Bar (Optional Filters) -->
+    <div class="floating-panel p-bottom-center">
+        <div class="chip-container glass effect">
+            <button class="chip active" id="btn-heatmap">🔥 High Accident Zones</button>
+            <button class="chip" id="btn-routes">🛡️ Safe Routes Layer</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+    <!-- Leaflet Heatmap Plugin -->
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+    <script src="script.js?v=3"></script>
+</body>
+</html>
