@@ -34,6 +34,14 @@
                     <input type="text" id="end-input" placeholder="End: Choose on map or type..." autocomplete="off" />
                     <div id="end-suggestions" class="suggestions hidden"></div>
                 </div>
+                <div class="input-wrapper">
+                    <span class="input-icon">🌤️</span>
+                    <select id="weather-input" class="weather-select">
+                        <option value="0">Clear / Dry</option>
+                        <option value="1">Rainy / Wet</option>
+                        <option value="2">Foggy / Low Visibility</option>
+                    </select>
+                </div>
                 <button id="btn-calculate" class="calc-btn">Calculate Route</button>
             </div>
             
@@ -41,8 +49,18 @@
                 <div class="status-indicator"></div>
                 <div class="result-content">
                     <h3 id="result-status">Analyzing...</h3>
-                    <p class="score-text">Severity Risk: <span id="result-score">--</span>%</p>
+                    <p class="score-text" style="display:flex; justify-content:space-between;">
+                        <span>Severity Risk: <span id="result-score">--</span>%</span>
+                        <span style="color:#0284c7; font-size: 0.85rem;">Speed: <span id="result-speed">--</span></span>
+                    </p>
                     <p class="coordinate-text" id="result-coords">Lat: --, Lng: --</p>
+                    
+                    <div id="safety-recommendations" class="hidden" style="margin-top: 10px; padding: 10px; background: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 4px;">
+                        <strong style="color: #b45309; font-size: 0.85rem;">⚠️ Safety Precautions:</strong>
+                        <ul id="recommendations-list" style="margin: 4px 0 0 0; padding-left: 20px; font-size: 0.8rem; color: #92400e;">
+                        </ul>
+                    </div>
+
                     <a id="gmaps-link" href="#" target="_blank" class="calc-btn hidden" style="display:inline-block; margin-top:8px; font-size:0.75rem; padding:6px 10px; text-decoration:none;">🗺️ Open Route in Google Maps</a>
                 </div>
             </div>
@@ -54,6 +72,7 @@
         <div class="chip-container glass effect">
             <button class="chip active" id="btn-heatmap">🔥 High Accident Zones</button>
             <button class="chip" id="btn-routes">🛡️ Safe Routes Layer</button>
+            <button class="chip" id="btn-weather-layer">⛅ Weather Map</button>
         </div>
     </div>
 

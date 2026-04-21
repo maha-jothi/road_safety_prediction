@@ -14,7 +14,7 @@ def train_and_save_model():
         return
 
     df = pd.read_csv(csv_path)
-    X = df[['latitude', 'longitude']]
+    X = df[['latitude', 'longitude', 'weather']]
     y = df['risk']
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)

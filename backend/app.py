@@ -44,38 +44,88 @@ def get_accidents():
     points = highly_prone[['latitude', 'longitude']].values.tolist()
     return jsonify(points)
 
+@app.route('/api/weather_map', methods=['GET'])
+def get_weather_map():
+    df = pd.read_csv(CSV_PATH)
+    # Sample around 150 points for map performance
+    sampled = df.sample(n=min(150, len(df)), random_state=42)
+    
+    results = []
+    for _, row in sampled.iterrows():
+        results.append({
+            'lat': row['latitude'],
+            'lng': row['longitude'],
+            'weather': int(row['weather']),
+            'risk': int(row['risk'])
+        })
+    return jsonify(results)
+
+def get_recommendations(weather):
+    if weather == 1:
+        return ["Roads may be slippery. Reduce speed to 30 km/h.", "Turn on headlights.", "Avoid sudden braking."]
+    elif weather == 2:
+        return ["Extremely low visibility. Use fog lights.", "Keep a minimum 5-second following distance.", "Do not overtake other vehicles."]
+    return ["Maintain a safe following distance.", "Stay alert and avoid phone usage.", "Watch for blind spots in this zone."]
+
+def get_safe_speed(weather, is_safe):
+    if not is_safe:
+        return "Max 20 km/h (Caution)"
+    if weather == 1:
+        return "Max 35 km/h (Wet)"
+    elif weather == 2:
+        return "Max 25 km/h (Fog)"
+    return "Normal Limits"
+
 @app.route('/api/predict', methods=['POST'])
 def predict():
     data = request.json
     lat = data.get('lat')
     lng = data.get('lng')
+    weather = data.get('weather', 0)
     
     if not lat or not lng:
         return jsonify({'error': 'Lat and lng required'}), 400
         
-    prediction = model.predict([[lat, lng]])
-    probabilities = model.predict_proba([[lat, lng]])
+    try:
+        weather = int(weather)
+    except:
+        weather = 0
+        
+    prediction = model.predict([[lat, lng, weather]])
+    probabilities = model.predict_proba([[lat, lng, weather]])
     
     risk_prob = probabilities[0][1] # Probability of being class 1 (High Risk)
     
     is_safe = bool(prediction[0] == 0)
     
+    recommendations = []
+    if not is_safe:
+        recommendations = get_recommendations(weather)
+        
     return jsonify({
         'is_safe': is_safe,
         'risk_score': round(risk_prob * 100, 2),
-        'message': 'Safe Route' if is_safe else 'High Accident Zone'
+        'message': 'Safe Route' if is_safe else 'High Accident Zone',
+        'safe_speed': get_safe_speed(weather, is_safe),
+        'recommendations': recommendations
     })
 
 @app.route('/api/predict_route', methods=['POST'])
 def predict_route():
     data = request.json
     points = data.get('points')
+    weather = data.get('weather', 0)
     
     if not points or not isinstance(points, list):
         return jsonify({'error': 'Points list required'}), 400
         
+    try:
+        weather = int(weather)
+    except:
+        weather = 0
+        
     # Format points for prediction
-    coords = [[p['lat'], p['lng']] for p in points]
+    coords = [[p['lat'], p['lng'], weather] for p in points]
     
     # Predict all at once
     predictions = model.predict(coords)
@@ -89,7 +139,9 @@ def predict_route():
             'lat': p['lat'],
             'lng': p['lng'],
             'is_safe': is_safe,
-            'risk_score': round(risk_prob * 100, 2)
+            'risk_score': round(risk_prob * 100, 2),
+            'safe_speed': get_safe_speed(weather, is_safe),
+            'recommendations': get_recommendations(weather) if not is_safe else []
         })
         
     return jsonify(results)

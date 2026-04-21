@@ -62,6 +62,48 @@ document.getElementById('btn-heatmap').addEventListener('click', (e) => {
     }
 });
 
+// Weather Map Layer State
+let weatherMapLayer = L.layerGroup();
+
+document.getElementById('btn-weather-layer').addEventListener('click', async (e) => {
+    e.target.classList.toggle('active');
+    const isActive = e.target.classList.contains('active');
+    
+    if (isActive) {
+        try {
+            const response = await fetch(`${API_BASE}/weather_map`);
+            const data = await response.json();
+            
+            data.forEach(pt => {
+                let iconStr = "☀️";
+                if (pt.weather === 1) iconStr = "🌧️";
+                else if (pt.weather === 2) iconStr = "🌫️";
+                
+                const bgColor = pt.risk === 1 ? "#fce8e6" : "#e6f4ea";
+                const borderColor = pt.risk === 1 ? "#ef4444" : "#10b981";
+                
+                const customIcon = L.divIcon({
+                    html: `<div style="background-color: ${bgColor}; border: 2px solid ${borderColor}; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); line-height: 1;">${iconStr}</div>`,
+                    className: '',
+                    iconSize: [26, 26],
+                    iconAnchor: [13, 13]
+                });
+                
+                L.marker([pt.lat, pt.lng], { icon: customIcon }).addTo(weatherMapLayer);
+            });
+            
+            weatherMapLayer.addTo(map);
+        } catch (err) {
+            console.error("Failed to load weather map:", err);
+        }
+    } else {
+        weatherMapLayer.clearLayers();
+        if (map.hasLayer(weatherMapLayer)) {
+            map.removeLayer(weatherMapLayer);
+        }
+    }
+});
+
 // Safe Routes mapping logic
 document.getElementById('btn-routes').addEventListener('click', (e) => {
     e.target.classList.toggle('active');
@@ -81,6 +123,7 @@ document.getElementById('btn-routes').addEventListener('click', (e) => {
     
     const card = document.getElementById('prediction-result');
     const routeForm = document.getElementById('route-inputs');
+    const recContainer = document.getElementById('safety-recommendations');
     
     if (routeModeActive) {
         routeForm.classList.remove('hidden');
@@ -89,6 +132,7 @@ document.getElementById('btn-routes').addEventListener('click', (e) => {
         document.getElementById('result-status').innerText = '📍 Select Start & End';
         document.getElementById('result-score').innerText = '--';
         document.getElementById('result-coords').innerText = 'Awaiting Input...';
+        if (recContainer) recContainer.classList.add('hidden');
         
         // Remove single point marker
         if (currentMarker) {
@@ -131,7 +175,10 @@ map.on('click', async function(e) {
     }
 });
 
+let lastSinglePoint = null;
+
 async function handleSinglePointPrediction(lat, lng) {
+    lastSinglePoint = {lat, lng};
     // Add visual marker on click
     if (currentMarker) {
         map.removeLayer(currentMarker);
@@ -149,10 +196,12 @@ async function handleSinglePointPrediction(lat, lng) {
     showPredictionLoading(lat, lng);
 
     try {
+        const weather = document.getElementById('weather-input') ? parseInt(document.getElementById('weather-input').value) : 0;
+        
         const response = await fetch(`${API_BASE}/predict`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lat, lng })
+            body: JSON.stringify({ lat, lng, weather })
         });
         
         const data = await response.json();
@@ -244,11 +293,13 @@ async function calculateAndDrawRoute(start, end) {
             });
         }
         
+        const weather = document.getElementById('weather-input') ? parseInt(document.getElementById('weather-input').value) : 0;
+        
         // Send to backend
         const predictionResponse = await fetch(`${API_BASE}/predict_route`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ points: sampledPoints })
+            body: JSON.stringify({ points: sampledPoints, weather: weather })
         });
         
         if (!predictionResponse.ok) {
@@ -335,18 +386,68 @@ function drawSafeRouteWithPredictions(coordinates, predictions) {
 
     // Calculate average risk
     let avgRisk = predictions.reduce((acc, p) => acc + p.risk_score, 0) / predictions.length;
+    let overallSafeSpeed = predictions.some(p => !p.is_safe) ? "Max 20 km/h (Caution)" : (predictions[0] ? predictions[0].safe_speed : "Normal");
     document.getElementById('result-score').innerText = avgRisk.toFixed(1);
     
+    if (document.getElementById('result-speed')) {
+        document.getElementById('result-speed').innerText = overallSafeSpeed;
+    }
+    
+    // Add weather indicators sporadically along the route
+    const wVal = document.getElementById('weather-input') ? parseInt(document.getElementById('weather-input').value) : 0;
+    let iconStr = "☀️";
+    if (wVal === 1) iconStr = "🌧️";
+    else if (wVal === 2) iconStr = "🌫️";
+    
+    const numMarkers = Math.min(6, Math.max(2, Math.floor(coordinates.length / 10)));
+    const stepSize = Math.floor(coordinates.length / numMarkers);
+    if (stepSize > 0) {
+        for(let i=stepSize; i<coordinates.length-1; i+=stepSize) {
+            const pt = coordinates[i];
+            const weatherIcon = L.divIcon({
+                html: `<div style="background: white; border-radius: 50%; font-size: 12px; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.4); line-height: 1;">${iconStr}</div>`,
+                className: '', iconSize: [20, 20], iconAnchor: [10, 10]
+            });
+            const m = L.marker([pt[1], pt[0]], { icon: weatherIcon, interactive: false }).addTo(map);
+            routeLayers.push(m);
+        }
+    }
+    
     const card = document.getElementById('prediction-result');
+    const recContainer = document.getElementById('safety-recommendations');
+    const recList = document.getElementById('recommendations-list');
+    
     if (avgRisk < 30) {
         card.className = 'prediction-card safe';
         document.getElementById('result-status').innerText = '🛡️ Safe Route Generated';
-    } else if (avgRisk < 60) {
-        card.className = 'prediction-card';
-        document.getElementById('result-status').innerText = '⚠️ Moderate Risk Route';
+        if (recContainer) recContainer.classList.add('hidden');
     } else {
-        card.className = 'prediction-card danger';
-        document.getElementById('result-status').innerText = '🚨 High Risk Route';
+        if (avgRisk < 60) {
+            card.className = 'prediction-card';
+            document.getElementById('result-status').innerText = '⚠️ Moderate Risk Route';
+        } else {
+            card.className = 'prediction-card danger';
+            document.getElementById('result-status').innerText = '🚨 High Risk Route';
+        }
+        
+        let allRecs = new Set();
+        predictions.forEach(p => {
+            if (p.recommendations) {
+                p.recommendations.forEach(r => allRecs.add(r));
+            }
+        });
+        
+        if (allRecs.size > 0 && recContainer && recList) {
+            recList.innerHTML = '';
+            Array.from(allRecs).slice(0, 4).forEach(r => {
+                const li = document.createElement('li');
+                li.innerText = r;
+                recList.appendChild(li);
+            });
+            recContainer.classList.remove('hidden');
+        } else if (recContainer) {
+            recContainer.classList.add('hidden');
+        }
     }
     
     document.getElementById('result-coords').innerText = `Analyzed ${predictions.length} segments`;
@@ -369,7 +470,11 @@ function showPredictionLoading(lat, lng) {
     card.className = 'prediction-card'; // Removes hidden, danger, safe classes
     document.getElementById('result-status').innerText = 'Analyzing Route...';
     document.getElementById('result-score').innerText = '--';
+    if (document.getElementById('result-speed')) document.getElementById('result-speed').innerText = '--';
     document.getElementById('result-coords').innerText = `Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`;
+    
+    const recContainer = document.getElementById('safety-recommendations');
+    if (recContainer) recContainer.classList.add('hidden');
     
     // Hide gmaps link until ready
     const gmapsLink = document.getElementById('gmaps-link');
@@ -378,6 +483,8 @@ function showPredictionLoading(lat, lng) {
 
 function updatePredictionUI(data, lat, lng) {
     const card = document.getElementById('prediction-result');
+    const recContainer = document.getElementById('safety-recommendations');
+    const recList = document.getElementById('recommendations-list');
     
     // Change marker color based on ML output
     if (currentMarker) {
@@ -389,12 +496,28 @@ function updatePredictionUI(data, lat, lng) {
     if (data.is_safe) {
         card.className = 'prediction-card safe';
         document.getElementById('result-status').innerText = '🛡️ Safe Location';
+        if (recContainer) recContainer.classList.add('hidden');
     } else {
         card.className = 'prediction-card danger';
         document.getElementById('result-status').innerText = '⚠️ High Accident Zone';
+        
+        if (data.recommendations && data.recommendations.length > 0 && recContainer && recList) {
+            recList.innerHTML = '';
+            data.recommendations.forEach(r => {
+                const li = document.createElement('li');
+                li.innerText = r;
+                recList.appendChild(li);
+            });
+            recContainer.classList.remove('hidden');
+        } else if (recContainer) {
+            recContainer.classList.add('hidden');
+        }
     }
     
     document.getElementById('result-score').innerText = data.risk_score;
+    if (document.getElementById('result-speed')) {
+        document.getElementById('result-speed').innerText = data.safe_speed || '--';
+    }
 }
 
 // Autocomplete functionality
@@ -523,6 +646,21 @@ document.getElementById('btn-calculate').addEventListener('click', async () => {
     routeStartPoint = null;
     routeEndPoint = null;
 });
+
+// Auto-update when weather input changes
+const weatherInputNode = document.getElementById('weather-input');
+if(weatherInputNode) {
+    weatherInputNode.addEventListener('change', () => {
+        const sInput = document.getElementById('start-input');
+        const eInput = document.getElementById('end-input');
+        
+        if (routeModeActive && sInput && eInput && sInput.value && eInput.value && !document.getElementById('route-inputs').classList.contains('hidden')) {
+            document.getElementById('btn-calculate').click();
+        } else if (!routeModeActive && lastSinglePoint) {
+            handleSinglePointPrediction(lastSinglePoint.lat, lastSinglePoint.lng);
+        }
+    });
+}
 
 // Initial draw of heatmap
 loadHeatmap();

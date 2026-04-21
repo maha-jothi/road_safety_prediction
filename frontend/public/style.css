@@ -114,6 +114,17 @@ body {
     color: var(--text-secondary);
 }
 
+.weather-select {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.95rem;
+    width: 100%;
+    outline: none;
+    cursor: pointer;
+}
+
 .suggestions {
     position: absolute;
     top: 100%;

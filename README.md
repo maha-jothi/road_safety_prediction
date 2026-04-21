@@ -35,7 +35,6 @@ This project is an AI-powered web application that visualizes accident-prone zon
    python app.py
    ```
    *The server should run on `http://localhost:5000` (or similar, depending on your configuration).*
-
 ### Frontend Setup
 1. Change into the `frontend/public` directory or host it directly:
    ```bash
@@ -49,7 +48,7 @@ This project is an AI-powered web application that visualizes accident-prone zon
    Using Node.js:
    ```bash
    npx serve
-   ```
+   ``` 
 3. Open `http://localhost:8000` (or the port specified by your local server) in your web browser.
 
 ## Technologies Used
